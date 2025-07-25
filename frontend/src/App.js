@@ -5,7 +5,7 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 const App = () => {
   const [tickets, setTickets] = useState([]);
   const [epics, setEpics] = useState([]);
-  const [strikethroughTickets, setStrikethroughTickets] = useState([]);
+  const [fadingTickets, setFadingTickets] = useState([]);
   const [newTicket, setNewTicket] = useState({
     title: '',
     description: '',
@@ -40,13 +40,22 @@ const App = () => {
       body: JSON.stringify({ status: destination.droppableId }),
     }).then(() => {
       if (destination.droppableId === 'Done') {
-        setStrikethroughTickets((prev) => [...prev, movedTicket.id]);
-        setTimeout(() => {
-          handleDeleteTicket(movedTicket.id);
-        }, 3000); // 3-second delay
+        setFadingTickets((prev) => prev.includes(movedTicket.id) ? prev : [...prev, movedTicket.id]);
       }
     });
   };
+
+  useEffect(() => {
+    if (fadingTickets.length === 0) return;
+    fadingTickets.forEach((ticketId) => {
+      const timeout = setTimeout(() => {
+        handleDeleteTicket(ticketId);
+        setFadingTickets((prev) => prev.filter((id) => id !== ticketId));
+      }, 2000);
+      return () => clearTimeout(timeout);
+    });
+    // eslint-disable-next-line
+  }, [fadingTickets]);
 
   const priorityColors = {
     Low: '#28a745',
@@ -84,12 +93,14 @@ const App = () => {
   };
 
   const handleDeleteTicket = (ticketId) => {
+    // Prevent double deletion
+    if (!tickets.some((ticket) => ticket.id === ticketId)) return;
     fetch(`http://localhost:3001/api/tickets/${ticketId}`, {
       method: 'DELETE',
     })
       .then((res) => {
         if (res.ok) {
-          setTickets(tickets.filter((ticket) => ticket.id !== ticketId));
+          setTickets((tickets) => tickets.filter((ticket) => ticket.id !== ticketId));
         }
       });
   };
@@ -229,31 +240,37 @@ const App = () => {
                             {...provided.draggableProps}
                             {...provided.dragHandleProps}
                             className="card"
-                            style={{ ...provided.draggableProps.style, marginBottom: '8px' }}
+                            style={{
+                              ...provided.draggableProps.style,
+                              marginBottom: '8px',
+                              opacity: status === 'Done' && fadingTickets.includes(ticket.id) ? 0 : 1,
+                              transition: status === 'Done' && fadingTickets.includes(ticket.id) ? 'opacity 2s ease' : undefined,
+                            }}
                           >
-                            <div className="card-body">
-                              <h5 className="card-title" style={{ textDecoration: strikethroughTickets.includes(ticket.id) ? 'line-through' : 'none' }}>{ticket.title}</h5>
+                            <div className="card-body" style={{ position: 'relative' }}>
+                              <h5 className="card-title" style={{ textDecoration: fadingTickets.includes(ticket.id) ? 'line-through' : 'none' }}>{ticket.title}</h5>
                               <div className="position-absolute top-0 end-0 p-2">
-                                {
-                                  ticket.priority === 'Low' && <i className="bi bi-arrow-down-circle-fill text-success" title="Low Priority" style={{ cursor: 'default' }}></i>
-                                }
-                                {
-                                  ticket.priority === 'Medium' && <i className="bi bi-dash-circle-fill text-warning" title="Medium Priority" style={{ cursor: 'default' }}></i>
-                                }
-                                {
-                                  ticket.priority === 'High' && <i className="bi bi-arrow-up-circle-fill text-danger" title="High Priority" style={{ cursor: 'default' }}></i>
-                                }
+                                {ticket.priority === 'Low' && <i className="bi bi-arrow-down-circle-fill text-success" title="Low Priority" style={{ cursor: 'default' }}></i>}
+                                {ticket.priority === 'Medium' && <i className="bi bi-dash-circle-fill text-warning" title="Medium Priority" style={{ cursor: 'default' }}></i>}
+                                {ticket.priority === 'High' && <i className="bi bi-arrow-up-circle-fill text-danger" title="High Priority" style={{ cursor: 'default' }}></i>}
                               </div>
                               <p className="card-text">{ticket.description}</p>
-                              <p className="card-text">
-                                <small className="text-muted">
-                                  Epic: <span style={{ color: ticket.epic_color }}>{ticket.epic_name}</span>
-                                </small>
-                              </p>
-                              <button className="btn btn-danger btn-sm" onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteTicket(ticket.id);
-                              }}>Delete</button>
+                              {ticket.epic_name && (
+                                <div
+                                  style={{
+                                    backgroundColor: ticket.epic_color,
+                                    padding: '5px',
+                                    borderRadius: '3px',
+                                    marginTop: '10px',
+                                    color: 'white',
+                                    fontSize: '0.8em',
+                                    fontWeight: 'bold',
+                                    display: 'inline-block',
+                                  }}
+                                >
+                                  {ticket.epic_name}
+                                </div>
+                              )}
                             </div>
                           </div>
                         )}
