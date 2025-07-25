@@ -9,17 +9,18 @@ This is a simple JIRA clone application with a React frontend and a Node.js back
 ### Prerequisites
 
 *   Node.js and npm installed on your machine.
+*   `make` command available on your system.
 
-### Installation and Startup
+## Usage
 
-1.  **Backend:**
-    *   Open a terminal and navigate to the `backend` directory.
-    *   Run `npm install` to install the dependencies.
-    *   Run `node index.js` to start the backend server.
+1.  **Install dependencies:**
+    ```bash
+    make install
+    ```
 
-2.  **Frontend:**
-    *   Open another terminal and navigate to the `frontend` directory.
-    *   Run `npm install` to install the dependencies.
-    *   Run `npm start` to start the frontend development server.
+2.  **Start the application:**
+    ```bash
+    make start
+    ```
 
 The application will be available at [http://localhost:3000](http://localhost:3000).
