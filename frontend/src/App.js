@@ -13,6 +13,8 @@ const App = () => {
     epic_id: '',
   });
   const [newEpic, setNewEpic] = useState({ name: '', color: '#007bff' });
+  const [showTicketModal, setShowTicketModal] = useState(false);
+  const [showEpicModal, setShowEpicModal] = useState(false);
 
   useEffect(() => {
     fetch('http://localhost:3001/api/tickets')
@@ -63,6 +65,7 @@ const App = () => {
       .then((data) => {
         setTickets([...tickets, data]);
         setNewTicket({ title: '', description: '', priority: 'Medium', epic_id: '' });
+        setShowTicketModal(false); // Close modal after creation
       });
   };
 
@@ -76,6 +79,7 @@ const App = () => {
       .then((data) => {
         setEpics([...epics, data]);
         setNewEpic({ name: '', color: '#007bff' });
+        setShowEpicModal(false); // Close modal after creation
       });
   };
 
@@ -105,67 +109,105 @@ const App = () => {
   return (
     <div className="container mt-4">
       <h1 className="text-center mb-4">JIRA Clone</h1>
-      <div className="row">
-        <div className="col-md-4">
-          <h2>Create Ticket</h2>
-          <input
-            type="text"
-            className="form-control mb-2"
-            placeholder="Title"
-            value={newTicket.title}
-            onChange={(e) => setNewTicket({ ...newTicket, title: e.target.value })}
-          />
-          <textarea
-            className="form-control mb-2"
-            placeholder="Description"
-            value={newTicket.description}
-            onChange={(e) => setNewTicket({ ...newTicket, description: e.target.value })}
-          />
-          <select
-            className="form-control mb-2"
-            value={newTicket.priority}
-            onChange={(e) => setNewTicket({ ...newTicket, priority: e.target.value })}
-          >
-            <option>Low</option>
-            <option>Medium</option>
-            <option>High</option>
-          </select>
-          <select
-            className="form-control mb-2"
-            value={newTicket.epic_id}
-            onChange={(e) => setNewTicket({ ...newTicket, epic_id: e.target.value })}
-          >
-            <option value="">Select Epic</option>
-            {epics.map((epic) => (
-              <option key={epic.id} value={epic.id}>
-                {epic.name}
-              </option>
-            ))}
-          </select>
-          <button className="btn btn-primary" onClick={handleCreateTicket}>
-            Create Ticket
+      <div className="row mb-4">
+        <div className="col-md-6">
+          <button className="btn btn-primary" onClick={() => setShowTicketModal(true)}>
+            <i className="bi bi-plus-lg"></i> Create Ticket
           </button>
         </div>
-        <div className="col-md-4">
-          <h2>Create Epic</h2>
-          <input
-            type="text"
-            className="form-control mb-2"
-            placeholder="Epic Name"
-            value={newEpic.name}
-            onChange={(e) => setNewEpic({ ...newEpic, name: e.target.value })}
-          />
-          <input
-            type="color"
-            className="form-control mb-2"
-            value={newEpic.color}
-            onChange={(e) => setNewEpic({ ...newEpic, color: e.target.value })}
-          />
-          <button className="btn btn-success" onClick={handleCreateEpic}>
-            Create Epic
+        <div className="col-md-6 text-end">
+          <button className="btn btn-success" onClick={() => setShowEpicModal(true)}>
+            <i className="bi bi-plus-lg"></i> Create Epic
           </button>
         </div>
       </div>
+
+      {/* Ticket Creation Modal */}
+      {showTicketModal && (
+        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="modal-dialog">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">Create New Ticket</h5>
+                <button type="button" className="btn-close" onClick={() => setShowTicketModal(false)}></button>
+              </div>
+              <div className="modal-body">
+                <input
+                  type="text"
+                  className="form-control mb-2"
+                  placeholder="Title"
+                  value={newTicket.title}
+                  onChange={(e) => setNewTicket({ ...newTicket, title: e.target.value })}
+                />
+                <textarea
+                  className="form-control mb-2"
+                  placeholder="Description"
+                  value={newTicket.description}
+                  onChange={(e) => setNewTicket({ ...newTicket, description: e.target.value })}
+                />
+                <select
+                  className="form-control mb-2"
+                  value={newTicket.priority}
+                  onChange={(e) => setNewTicket({ ...newTicket, priority: e.target.value })}
+                >
+                  <option>Low</option>
+                  <option>Medium</option>
+                  <option>High</option>
+                </select>
+                <select
+                  className="form-control mb-2"
+                  value={newTicket.epic_id}
+                  onChange={(e) => setNewTicket({ ...newTicket, epic_id: e.target.value })}
+                >
+                  <option value="">Select Epic</option>
+                  {epics.map((epic) => (
+                    <option key={epic.id} value={epic.id}>
+                      {epic.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={() => setShowTicketModal(false)}>Close</button>
+                <button type="button" className="btn btn-primary" onClick={handleCreateTicket}>Create Ticket</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Epic Creation Modal */}
+      {showEpicModal && (
+        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="modal-dialog">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">Create New Epic</h5>
+                <button type="button" className="btn-close" onClick={() => setShowEpicModal(false)}></button>
+              </div>
+              <div className="modal-body">
+                <input
+                  type="text"
+                  className="form-control mb-2"
+                  placeholder="Epic Name"
+                  value={newEpic.name}
+                  onChange={(e) => setNewEpic({ ...newEpic, name: e.target.value })}
+                />
+                <input
+                  type="color"
+                  className="form-control mb-2"
+                  value={newEpic.color}
+                  onChange={(e) => setNewEpic({ ...newEpic, color: e.target.value })}
+                />
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={() => setShowEpicModal(false)}>Close</button>
+                <button type="button" className="btn btn-success" onClick={handleCreateEpic}>Create Epic</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       <DragDropContext onDragEnd={handleDragEnd}>
         <div className="row mt-4">
           {Object.entries(columns).map(([status, tickets]) => (
@@ -186,20 +228,32 @@ const App = () => {
                             ref={provided.innerRef}
                             {...provided.draggableProps}
                             {...provided.dragHandleProps}
-                            className="card mb-2"
+                            className="card"
+                            style={{ ...provided.draggableProps.style, marginBottom: '8px' }}
                           >
                             <div className="card-body">
                               <h5 className="card-title" style={{ textDecoration: strikethroughTickets.includes(ticket.id) ? 'line-through' : 'none' }}>{ticket.title}</h5>
+                              <div className="position-absolute top-0 end-0 p-2">
+                                {
+                                  ticket.priority === 'Low' && <i className="bi bi-arrow-down-circle-fill text-success" title="Low Priority" style={{ cursor: 'default' }}></i>
+                                }
+                                {
+                                  ticket.priority === 'Medium' && <i className="bi bi-dash-circle-fill text-warning" title="Medium Priority" style={{ cursor: 'default' }}></i>
+                                }
+                                {
+                                  ticket.priority === 'High' && <i className="bi bi-arrow-up-circle-fill text-danger" title="High Priority" style={{ cursor: 'default' }}></i>
+                                }
+                              </div>
                               <p className="card-text">{ticket.description}</p>
-                              <p className="card-text">
-                                <small className="text-muted">Priority: <span style={{ color: ticket.priority_color }}>{ticket.priority}</span></small>
-                              </p>
                               <p className="card-text">
                                 <small className="text-muted">
                                   Epic: <span style={{ color: ticket.epic_color }}>{ticket.epic_name}</span>
                                 </small>
                               </p>
-                              <button className="btn btn-danger btn-sm" onClick={() => handleDeleteTicket(ticket.id)}>Delete</button>
+                              <button className="btn btn-danger btn-sm" onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteTicket(ticket.id);
+                              }}>Delete</button>
                             </div>
                           </div>
                         )}
