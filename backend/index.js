@@ -46,22 +46,39 @@ app.get('/api/epics', (req, res) => {
   });
 });
 
+const getRandomColor = () => {
+  const letters = '0123456789ABCDEF';
+  let color = '#';
+  for (let i = 0; i < 6; i++) {
+    color += letters[Math.floor(Math.random() * 16)];
+  }
+  return color;
+};
+
 app.post('/api/epics', (req, res) => {
-  const { name } = req.body;
+  const { name, color } = req.body;
   if (!name) {
     return res.status(400).json({ error: 'Epic name is required' });
   }
-  db.run('INSERT INTO epics (name) VALUES (?)', [name], function (err) {
+  const epicColor = color || getRandomColor();
+  db.run('INSERT INTO epics (name, color) VALUES (?, ?)', [name, epicColor], function (err) {
     if (err) {
       res.status(500).json({ error: err.message });
       return;
     }
-    res.json({ id: this.lastID, name });
+    res.json({ id: this.lastID, name, color: epicColor });
   });
 });
 
 app.get('/api/tickets', (req, res) => {
-  db.all('SELECT * FROM tickets', [], (err, rows) => {
+  db.all(`
+    SELECT
+      tickets.*,
+      epics.name AS epic_name,
+      epics.color AS epic_color
+    FROM tickets
+    LEFT JOIN epics ON tickets.epic_id = epics.id
+  `, [], (err, rows) => {
     if (err) {
       res.status(500).json({ error: err.message });
       return;
@@ -71,19 +88,31 @@ app.get('/api/tickets', (req, res) => {
 });
 
 app.post('/api/tickets', (req, res) => {
-  const { title, description, status, priority, epic_id } = req.body;
+  const { title, description, status, priority, epic_id, priority_color } = req.body;
   if (!title || !status || !priority) {
     return res.status(400).json({ error: 'Title, status, and priority are required' });
   }
+  const actualEpicId = epic_id || null; // Convert empty string to null for database
   db.run(
-    'INSERT INTO tickets (title, description, status, priority, epic_id) VALUES (?, ?, ?, ?, ?)',
-    [title, description, status, priority, epic_id],
+    'INSERT INTO tickets (title, description, status, priority, epic_id, priority_color) VALUES (?, ?, ?, ?, ?, ?)',
+    [title, description, status, priority, actualEpicId, priority_color],
     function (err) {
       if (err) {
         res.status(500).json({ error: err.message });
         return;
       }
-      res.json({ id: this.lastID, title, description, status, priority, epic_id });
+      const newTicketId = this.lastID;
+      if (actualEpicId) {
+        db.get('SELECT name as epic_name, color as epic_color FROM epics WHERE id = ?', [actualEpicId], (err, epicRow) => {
+          if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+          }
+          res.json({ id: newTicketId, title, description, status, priority, epic_id: actualEpicId, priority_color, epic_name: epicRow ? epicRow.epic_name : null, epic_color: epicRow ? epicRow.epic_color : null });
+        });
+      } else {
+        res.json({ id: newTicketId, title, description, status, priority, epic_id: actualEpicId, priority_color, epic_name: null, epic_color: null });
+      }
     }
   );
 });
@@ -119,3 +148,5 @@ app.delete('/api/tickets/:id', (req, res) => {
 app.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);
 });
+
+module.exports = app;
