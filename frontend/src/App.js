@@ -236,9 +236,16 @@ const App = () => {
                   className="form-control mb-2"
                   placeholder="Story Points (optional)"
                   value={newTicket.story_points}
-                  onChange={(e) => setNewTicket({ ...newTicket, story_points: e.target.value })}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    // Only allow integers (no decimals, no negative numbers)
+                    if (value === '' || (/^\d+$/.test(value) && parseInt(value) >= 1 && parseInt(value) <= 100)) {
+                      setNewTicket({ ...newTicket, story_points: value });
+                    }
+                  }}
                   min="1"
                   max="100"
+                  step="1"
                 />
               </div>
               <div className="modal-footer">
@@ -375,27 +382,30 @@ const App = () => {
                             }}
                           >
                             <div className="card-body" style={{ position: 'relative' }}>
-                              <h5 className="card-title" style={{ textDecoration: fadingTickets.includes(ticket.id) ? 'line-through' : 'none' }}>{ticket.title}</h5>
-                              <div className="position-absolute top-0 end-0 p-2">
-                                {ticket.priority === 'Low' && <i className="bi bi-arrow-down-circle-fill text-success" title="Low Priority" style={{ cursor: 'default' }}></i>}
-                                {ticket.priority === 'Medium' && <i className="bi bi-dash-circle-fill text-warning" title="Medium Priority" style={{ cursor: 'default' }}></i>}
-                                {ticket.priority === 'High' && <i className="bi bi-arrow-up-circle-fill text-danger" title="High Priority" style={{ cursor: 'default' }}></i>}
-                                {ticket.story_points && (
-                                  <span
-                                    style={{
-                                      backgroundColor: '#6c757d',
-                                      color: 'white',
-                                      padding: '2px 6px',
-                                      borderRadius: '10px',
-                                      fontSize: '0.7em',
-                                      marginLeft: '5px',
-                                      fontWeight: 'bold',
-                                    }}
-                                    title={`${ticket.story_points} story points`}
-                                  >
-                                    {ticket.story_points}
-                                  </span>
-                                )}
+                              <div className="d-flex justify-content-between align-items-start mb-2">
+                                <h5 className="card-title mb-0" style={{ textDecoration: fadingTickets.includes(ticket.id) ? 'line-through' : 'none', flex: '1', marginRight: '10px' }}>{ticket.title}</h5>
+                                <div className="d-flex align-items-center gap-1" style={{ flexShrink: 0 }}>
+                                  {ticket.priority === 'Low' && <i className="bi bi-arrow-down-circle-fill text-success" title="Low Priority" style={{ cursor: 'default', fontSize: '1.1em' }}></i>}
+                                  {ticket.priority === 'Medium' && <i className="bi bi-dash-circle-fill text-warning" title="Medium Priority" style={{ cursor: 'default', fontSize: '1.1em' }}></i>}
+                                  {ticket.priority === 'High' && <i className="bi bi-arrow-up-circle-fill text-danger" title="High Priority" style={{ cursor: 'default', fontSize: '1.1em' }}></i>}
+                                  {ticket.story_points && (
+                                    <span
+                                      style={{
+                                        backgroundColor: '#6c757d',
+                                        color: 'white',
+                                        padding: '3px 8px',
+                                        borderRadius: '12px',
+                                        fontSize: '0.75em',
+                                        fontWeight: 'bold',
+                                        minWidth: '20px',
+                                        textAlign: 'center',
+                                      }}
+                                      title={`${ticket.story_points} story points`}
+                                    >
+                                      {ticket.story_points}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                               <p className="card-text">{ticket.description}</p>
                               {ticket.epic_name && (
