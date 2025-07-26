@@ -11,15 +11,24 @@ const App = () => {
     description: '',
     priority: 'Medium',
     epic_id: '',
+    story_points: '',
   });
   const [newEpic, setNewEpic] = useState({ name: '', color: '#007bff' });
   const [showTicketModal, setShowTicketModal] = useState(false);
   const [showEpicModal, setShowEpicModal] = useState(false);
+  const [epicsCollapsed, setEpicsCollapsed] = useState(false);
 
   useEffect(() => {
     fetch('http://localhost:3001/api/tickets')
       .then((res) => res.json())
-      .then((data) => setTickets(data.tickets));
+      .then((data) => {
+        // Ensure epic_id is properly converted to number for all tickets
+        const ticketsWithCorrectEpicId = data.tickets.map(ticket => ({
+          ...ticket,
+          epic_id: ticket.epic_id ? parseInt(ticket.epic_id) : null
+        }));
+        setTickets(ticketsWithCorrectEpicId);
+      });
     fetch('http://localhost:3001/api/epics')
       .then((res) => res.json())
       .then((data) => setEpics(data.epics));
@@ -65,16 +74,34 @@ const App = () => {
 
   const handleCreateTicket = () => {
     const priorityColor = priorityColors[newTicket.priority];
+    console.log('Creating ticket with data:', { ...newTicket, status: 'ToDo', priority_color: priorityColor });
+    
     fetch('http://localhost:3001/api/tickets', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...newTicket, status: 'ToDo', priority_color: priorityColor }),
     })
-      .then((res) => res.json())
+      .then((res) => {
+        console.log('Response status:', res.status);
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        return res.json();
+      })
       .then((data) => {
-        setTickets([...tickets, data]);
-        setNewTicket({ title: '', description: '', priority: 'Medium', epic_id: '' });
+        console.log('Created ticket:', data);
+        // Ensure the ticket has the correct epic_id format (number or null)
+        const ticketWithCorrectEpicId = {
+          ...data,
+          epic_id: data.epic_id ? parseInt(data.epic_id) : null
+        };
+        setTickets([...tickets, ticketWithCorrectEpicId]);
+        setNewTicket({ title: '', description: '', priority: 'Medium', epic_id: '', story_points: '' });
         setShowTicketModal(false); // Close modal after creation
+      })
+      .catch((error) => {
+        console.error('Error creating ticket:', error);
+        alert('Failed to create ticket. Please try again.');
       });
   };
 
@@ -105,8 +132,35 @@ const App = () => {
       });
   };
 
+  const handleDeleteEpic = (epicId) => {
+    console.log('Attempting to delete epic:', epicId);
+    fetch(`http://localhost:3001/api/epics/${epicId}`, {
+      method: 'DELETE',
+    })
+      .then((res) => {
+        console.log('Delete epic response status:', res.status);
+        if (res.ok) {
+          console.log('Epic deleted successfully');
+          setEpics((epics) => epics.filter((epic) => epic.id !== epicId));
+          // Also remove tickets associated with the deleted epic
+          setTickets((tickets) => tickets.filter((ticket) => parseInt(ticket.epic_id) !== epicId));
+        } else {
+          console.error('Failed to delete epic:', res.status);
+        }
+      })
+      .catch((error) => {
+        console.error('Error deleting epic:', error);
+      });
+  };
+
   const columns = {
-    ToDo: tickets.filter((t) => t.status === 'ToDo' || t.status === 'To Do'),
+    ToDo: tickets.filter((t) => {
+      const matches = t.status === 'ToDo' || t.status === 'To Do';
+      if (t.status === 'ToDo' || t.status === 'To Do') {
+        console.log('Ticket in ToDo:', t);
+      }
+      return matches;
+    }),
     InProgress: tickets.filter((t) => t.status === 'InProgress' || t.status === 'In Progress'),
     Done: tickets.filter((t) => t.status === 'Done'),
   };
@@ -177,6 +231,15 @@ const App = () => {
                     </option>
                   ))}
                 </select>
+                <input
+                  type="number"
+                  className="form-control mb-2"
+                  placeholder="Story Points (optional)"
+                  value={newTicket.story_points}
+                  onChange={(e) => setNewTicket({ ...newTicket, story_points: e.target.value })}
+                  min="1"
+                  max="100"
+                />
               </div>
               <div className="modal-footer">
                 <button type="button" className="btn btn-secondary" onClick={() => setShowTicketModal(false)}>Close</button>
@@ -219,6 +282,70 @@ const App = () => {
           </div>
         </div>
       )}
+
+      {/* Epic Display Section */}
+      {epics.length > 0 && (
+        <div className="row mb-4">
+          <div className="col-12">
+            <div className="card">
+              <div className="card-header">
+                <div className="d-flex justify-content-between align-items-center">
+                  <h5 className="mb-0">Epics</h5>
+                  <button 
+                    className="btn btn-sm btn-outline-secondary"
+                    onClick={() => setEpicsCollapsed(!epicsCollapsed)}
+                  >
+                    <i className={`bi bi-chevron-${epicsCollapsed ? 'down' : 'up'}`}></i>
+                    {epicsCollapsed ? 'Show' : 'Hide'}
+                  </button>
+                </div>
+              </div>
+              {!epicsCollapsed && (
+                <div className="card-body">
+                  <div className="row">
+                    {epics.map((epic) => (
+                      <div key={epic.id} className="col-md-3 col-sm-6 mb-3">
+                        <div 
+                          className="card h-100"
+                          style={{ 
+                            border: '1px solid #dee2e6',
+                            borderLeft: `4px solid ${epic.color}`
+                          }}
+                        >
+                          <div className="card-body">
+                            <h6 className="card-title">{epic.name}</h6>
+                            <div className="d-flex justify-content-between align-items-center">
+                              <span 
+                                className="badge"
+                                style={{ 
+                                  backgroundColor: epic.color,
+                                  color: 'white'
+                                }}
+                              >
+                                {tickets.filter(ticket => parseInt(ticket.epic_id) === epic.id).length} tickets
+                              </span>
+                              <div className="btn-group btn-group-sm">
+                                <button 
+                                  className="btn btn-outline-danger btn-sm"
+                                  onClick={() => handleDeleteEpic(epic.id)}
+                                  title="Delete Epic"
+                                >
+                                  <i className="bi bi-trash"></i>
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       <DragDropContext onDragEnd={handleDragEnd}>
         <div className="row mt-4">
           {Object.entries(columns).map(([status, tickets]) => (
@@ -253,6 +380,22 @@ const App = () => {
                                 {ticket.priority === 'Low' && <i className="bi bi-arrow-down-circle-fill text-success" title="Low Priority" style={{ cursor: 'default' }}></i>}
                                 {ticket.priority === 'Medium' && <i className="bi bi-dash-circle-fill text-warning" title="Medium Priority" style={{ cursor: 'default' }}></i>}
                                 {ticket.priority === 'High' && <i className="bi bi-arrow-up-circle-fill text-danger" title="High Priority" style={{ cursor: 'default' }}></i>}
+                                {ticket.story_points && (
+                                  <span
+                                    style={{
+                                      backgroundColor: '#6c757d',
+                                      color: 'white',
+                                      padding: '2px 6px',
+                                      borderRadius: '10px',
+                                      fontSize: '0.7em',
+                                      marginLeft: '5px',
+                                      fontWeight: 'bold',
+                                    }}
+                                    title={`${ticket.story_points} story points`}
+                                  >
+                                    {ticket.story_points}
+                                  </span>
+                                )}
                               </div>
                               <p className="card-text">{ticket.description}</p>
                               {ticket.epic_name && (

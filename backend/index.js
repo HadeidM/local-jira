@@ -19,7 +19,8 @@ db.serialize(() => {
   db.run(`
     CREATE TABLE IF NOT EXISTS epics (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL
+      name TEXT NOT NULL,
+      color TEXT
     )
   `);
 
@@ -31,6 +32,8 @@ db.serialize(() => {
       status TEXT NOT NULL,
       priority TEXT NOT NULL,
       epic_id INTEGER,
+      priority_color TEXT,
+      story_points INTEGER,
       FOREIGN KEY (epic_id) REFERENCES epics (id)
     )
   `);
@@ -88,30 +91,42 @@ app.get('/api/tickets', (req, res) => {
 });
 
 app.post('/api/tickets', (req, res) => {
-  const { title, description, status, priority, epic_id, priority_color } = req.body;
+  console.log('Received ticket creation request:', req.body);
+  const { title, description, status, priority, epic_id, priority_color, story_points } = req.body;
   if (!title || !status || !priority) {
+    console.log('Validation failed: missing required fields');
     return res.status(400).json({ error: 'Title, status, and priority are required' });
   }
   const actualEpicId = epic_id || null; // Convert empty string to null for database
+  const actualStoryPoints = story_points || null;
+  console.log('Inserting ticket with values:', [title, description, status, priority, actualEpicId, priority_color, actualStoryPoints]);
+
   db.run(
-    'INSERT INTO tickets (title, description, status, priority, epic_id, priority_color) VALUES (?, ?, ?, ?, ?, ?)',
-    [title, description, status, priority, actualEpicId, priority_color],
+    'INSERT INTO tickets (title, description, status, priority, epic_id, priority_color, story_points) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    [title, description, status, priority, actualEpicId, priority_color, actualStoryPoints],
     function (err) {
       if (err) {
+        console.error('Database error:', err);
         res.status(500).json({ error: err.message });
         return;
       }
+      console.log('Ticket created successfully with ID:', this.lastID);
       const newTicketId = this.lastID;
       if (actualEpicId) {
         db.get('SELECT name as epic_name, color as epic_color FROM epics WHERE id = ?', [actualEpicId], (err, epicRow) => {
           if (err) {
+            console.error('Error fetching epic:', err);
             res.status(500).json({ error: err.message });
             return;
           }
-          res.json({ id: newTicketId, title, description, status, priority, epic_id: actualEpicId, priority_color, epic_name: epicRow ? epicRow.epic_name : null, epic_color: epicRow ? epicRow.epic_color : null });
+          const response = { id: newTicketId, title, description, status, priority, epic_id: actualEpicId, priority_color, epic_name: epicRow ? epicRow.epic_name : null, epic_color: epicRow ? epicRow.epic_color : null, story_points: actualStoryPoints };
+          console.log('Sending response:', response);
+          res.json(response);
         });
       } else {
-        res.json({ id: newTicketId, title, description, status, priority, epic_id: actualEpicId, priority_color, epic_name: null, epic_color: null });
+        const response = { id: newTicketId, title, description, status, priority, epic_id: actualEpicId, priority_color, epic_name: null, epic_color: null, story_points: actualStoryPoints };
+        console.log('Sending response:', response);
+        res.json(response);
       }
     }
   );
@@ -142,6 +157,24 @@ app.delete('/api/tickets/:id', (req, res) => {
       return;
     }
     res.json({ message: 'Ticket deleted successfully', changes: this.changes });
+  });
+});
+
+app.delete('/api/epics/:id', (req, res) => {
+  // First, update all tickets that reference this epic to remove the epic_id
+  db.run('UPDATE tickets SET epic_id = NULL WHERE epic_id = ?', [req.params.id], function (err) {
+    if (err) {
+      res.status(500).json({ error: err.message });
+      return;
+    }
+    // Then delete the epic
+    db.run('DELETE FROM epics WHERE id = ?', [req.params.id], function (err) {
+      if (err) {
+        res.status(500).json({ error: err.message });
+        return;
+      }
+      res.json({ message: 'Epic deleted successfully', changes: this.changes });
+    });
   });
 });
 
